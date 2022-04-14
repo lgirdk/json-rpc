@@ -49,7 +49,7 @@ typedef struct request_msg_tracking_t
     int sequence;                        /* Sequence number of the request message. */
     pthread_mutex_t lock;                /* Mutex lock associated with the request message. */
     pthread_cond_t msg_rcvd;             /* Conditional wait associated with the request message. */
-    char buffer[MAX_BUFFER_SIZE];        /* String holds the request/response message. */
+    char *buffer;        				 /* String holds the request/response message. */
     int len;                             /* Length of the buffer. */
     int rc;                              /* Return code, RETURN_OK if response got else RETURN_ERR. */
     int ticker;                          /* Ticket to manage the timeout value. */
@@ -155,6 +155,11 @@ static int json_message_send(const rpc_client_data_t *s, const json_object *jmsg
  * @return random integer for sequencing the message.
  */
 static unsigned int get_req_id();
+
+/**
+ * @brief free rpc message.
+ */
+void free_rpc(request_msg_tracking_t** rpc);
 
 /**
  * @brief Prepare event subscription message.
@@ -496,8 +501,7 @@ static int response_parse_cb(const int fd, const char *buffer, const int len)
                         if (rpc->sequence == id)
                         {
                             LL_DELETE(g_request_msg_tracking, rpc);
-                            memset(rpc->buffer, 0, len + 1);
-                            strncpy(rpc->buffer, buffer, len);
+                            rpc->buffer = strdup(buffer);
                             rpc->rc = RETURN_OK;
                             rpc->len = len;
                             pthread_mutex_lock(&rpc->lock);
@@ -643,10 +647,9 @@ static int client_send_and_get_reply(const json_object *jrequest_msg, int tick_t
     }
     else
     {
-        LOGERROR("Failed to get reqId field from json request message \n");
-        free(rpc);
-        rpc = NULL;
-        return RETURN_ERR;
+    	LOGERROR("Failed to get reqId field from json request message \n");
+    	free_rpc(&rpc);
+    	return RETURN_ERR;
     }
 
     pthread_mutex_init(&rpc->lock, NULL);
@@ -664,14 +667,13 @@ static int client_send_and_get_reply(const json_object *jrequest_msg, int tick_t
     rc = json_message_send(&g_rpc_client, jrequest_msg);
     if (rc != RETURN_OK)
     {
-        LOGERROR("Failed to send the request to server");
-        pthread_mutex_unlock(&rpc->lock);
-        pthread_mutex_destroy(&rpc->lock);
-        pthread_cond_destroy(&rpc->msg_rcvd);
-        request_delete_cb(request_msg_req_id);
-        free(rpc);
-        rpc = NULL;
-        return RETURN_ERR;
+    	LOGERROR("Failed to send the request to server");
+    	pthread_mutex_unlock(&rpc->lock);
+    	pthread_mutex_destroy(&rpc->lock);
+    	pthread_cond_destroy(&rpc->msg_rcvd);
+    	request_delete_cb(request_msg_req_id);
+    	free_rpc(&rpc);
+    	return RETURN_ERR;
     }
 
     /* Wait for the signal of msg_rcvd.
@@ -697,8 +699,7 @@ static int client_send_and_get_reply(const json_object *jrequest_msg, int tick_t
 
     if (rpc)
     {
-        free(rpc);
-        rpc = NULL;
+    	free_rpc(&rpc);
     }
     return rc;
 }
@@ -778,12 +779,11 @@ int json_hal_client_terminate()
     pthread_mutex_lock(&gm_request_msg_tracking_lock);
     LL_FOREACH_SAFE(g_request_msg_tracking, rpc, tmp)
     {
-        LL_DELETE(g_request_msg_tracking, rpc);
-        if (rpc)
-        {
-            free(rpc);
-            rpc = NULL;
-        }
+    	LL_DELETE(g_request_msg_tracking, rpc);
+    	if (rpc)
+    	{
+    		free_rpc(&rpc);
+    	}
     }
 
     if (g_request_msg_tracking != NULL)
@@ -963,4 +963,21 @@ unsigned int get_req_id(void)
         g_req_id = DEFAULT_SEQ_START_NUMBER;
 
     return g_req_id;
+}
+
+void free_rpc(request_msg_tracking_t** rpc)
+{
+	if(*rpc)
+	{
+		if((*rpc)->buffer)
+		{
+			free((*rpc)->buffer);
+			(*rpc)->buffer=NULL;
+		}
+
+		free(*rpc);
+		(*rpc)=NULL;
+	}
+
+	return ;
 }

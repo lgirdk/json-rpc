@@ -107,6 +107,9 @@ static void *rpc_client_handler(void *paramPtr)
 
     struct rpc_client_data_t *params = (rpc_client_data_t *)paramPtr;
     struct sockaddr_in server;
+    char * pBuf;
+    char * tmp = NULL;
+    int tmpLen = 0;
 
     if (NULL == params)
     {
@@ -183,6 +186,36 @@ static void *rpc_client_handler(void *paramPtr)
 
             if (FD_ISSET(params->sock, &read_set)) {
                 rc = recv(params->sock, params->buffer, MAX_BUFFER_SIZE, 0);
+
+
+                if(rc >= MAX_BUFFER_SIZE) {
+                    if(tmp) {
+                        tmpLen = strlen(tmp);
+                        tmp = realloc(tmp, tmpLen + MAX_BUFFER_SIZE+1);
+                        memset(tmp+tmpLen, 0, MAX_BUFFER_SIZE+1);
+                    }
+                    else {
+                        tmp = malloc(MAX_BUFFER_SIZE+1);
+                        memset(tmp, 0, MAX_BUFFER_SIZE+1);
+                    }
+                    memcpy(tmp+tmpLen, params->buffer, MAX_BUFFER_SIZE);
+                    break;
+
+                }else if(tmp!=NULL) {
+                    //realloc
+                    {
+                        tmpLen = strlen(tmp);
+                        tmp = realloc(tmp, tmpLen + MAX_BUFFER_SIZE+1);
+                        memset(tmp+tmpLen, 0, MAX_BUFFER_SIZE+1);
+                    }
+
+                    memcpy(tmp+tmpLen, params->buffer, MAX_BUFFER_SIZE);
+                    pBuf=tmp;
+                }
+                else {
+                    pBuf = params->buffer;
+                }
+
                 if(rc < 0) {
                     LOGERROR("recv failed, Error Number : %d, Error : %s", errno, strerror(errno));
                     break;
@@ -198,7 +231,13 @@ static void *rpc_client_handler(void *paramPtr)
                 }
                 else { //rc > 0
                     if(params->func_parse != NULL) {
-                        params->func_parse(params->sock, params->buffer, rc);
+                        params->func_parse(params->sock, pBuf, strlen(pBuf));
+
+                        if(tmp!=NULL) {
+                            free(tmp);
+                            tmp = NULL;
+                            tmpLen=0;
+                        }
                     }
                 } // Got a reponse for something!
             } else {
@@ -209,7 +248,7 @@ static void *rpc_client_handler(void *paramPtr)
         
         
         //IDLE
-        if (params->func_idle != NULL)
+        if (tmp == NULL && params->func_idle != NULL)
         {
             params->func_idle();
         }
