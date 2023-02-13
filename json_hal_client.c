@@ -159,7 +159,7 @@ static unsigned int get_req_id();
 /**
  * @brief free rpc message.
  */
-void free_rpc(request_msg_tracking_t** rpc);
+static void free_rpc(request_msg_tracking_t **rpc);
 
 /**
  * @brief Prepare event subscription message.
@@ -782,7 +782,7 @@ int json_hal_client_terminate()
     	LL_DELETE(g_request_msg_tracking, rpc);
     	if (rpc)
     	{
-    		free_rpc(&rpc);
+            free_rpc(&rpc);
     	}
     }
 
@@ -965,19 +965,17 @@ unsigned int get_req_id(void)
     return g_req_id;
 }
 
-void free_rpc(request_msg_tracking_t** rpc)
+static void free_rpc (request_msg_tracking_t **rpc)
 {
-	if(*rpc)
-	{
-		if((*rpc)->buffer)
-		{
-			free((*rpc)->buffer);
-			(*rpc)->buffer=NULL;
-		}
+    if (*rpc)
+    {
+        if ((*rpc)->buffer)
+        {
+            free((*rpc)->buffer);
+        }
 
-		free(*rpc);
-		(*rpc)=NULL;
-	}
+        free(*rpc);
 
-	return ;
+        (*rpc) = NULL;
+    }
 }
