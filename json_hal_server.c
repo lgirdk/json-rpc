@@ -755,7 +755,12 @@ int json_hal_server_publish_event(const char *event_name, const char *event_valu
         {
             LOGINFO("Find registered client for event");
             json_object *jevent_msg = create_publish_event_msg(event_name, event_value);
-            POINTER_ASSERT(jevent_msg != NULL);
+            if (jevent_msg == NULL)
+            {
+                pthread_mutex_unlock(&gm_subscription_mutex);
+                LOGERROR("jevent_msg is NULL !!!");
+                return RETURN_ERR;
+            }
 
 #ifdef JSON_BLOCKING_SUBSCRIBE_EVENT
             if((subs->event_type == NOTIFICATION_TYPE_ON_CHANGE_SYNC_TIMEOUT)
