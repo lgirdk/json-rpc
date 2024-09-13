@@ -149,7 +149,7 @@ int json_hal_add_param(json_object *jreply, eActionType action, hal_param_t *par
     int int_value = 0;
     unsigned int uint_value = 0;
     long long_value = 0;
-    unsigned ulong_value = 0;
+    unsigned long ulong_value = 0;
 
     if(jreply == NULL || param == NULL) {
         return RETURN_ERR;
@@ -194,7 +194,7 @@ int json_hal_add_param(json_object *jreply, eActionType action, hal_param_t *par
                         break;
                     case PARAM_UNSIGNED_INTEGER:
                         json_object_object_add(jparam, JSON_RPC_FIELD_PARAM_TYPE, json_object_new_string(JSON_RPC_FIELD_TYPE_UNSIGNED_INTEGER));
-                        uint_value = atoi(param->value);
+                        uint_value = atoll(param->value);
                         json_object_object_add(jparam, JSON_RPC_FIELD_PARAM_VALUE, json_object_new_int(uint_value));
                         break;
                     case PARAM_LONG:
@@ -204,7 +204,7 @@ int json_hal_add_param(json_object *jreply, eActionType action, hal_param_t *par
                         break;
                     case PARAM_UNSIGNED_LONG:
                         json_object_object_add(jparam, JSON_RPC_FIELD_PARAM_TYPE, json_object_new_string(JSON_RPC_FIELD_TYPE_UNSIGNED_LONG));
-                        ulong_value = atol(param->value);
+                        ulong_value = atoll(param->value);
                         json_object_object_add(jparam, JSON_RPC_FIELD_PARAM_VALUE, json_object_new_int64(ulong_value));
                         break;
                 }
